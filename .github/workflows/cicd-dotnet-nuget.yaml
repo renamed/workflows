@@ -1,0 +1,104 @@
+name: CICD dotNet Nuget
+description: Tests, builds and publishes a .Net Nuget Package
+
+on:
+  workflow_call:
+    inputs:
+      dotnet-version:
+        description: 'The .NET SDK version to use'
+        required: false
+        type: string
+        default: '10.0.x'
+      solution-file:
+        description: 'The solution file to build'
+        required: false
+        type: string
+        default: '**/*.sln'
+      build-configuration:
+        description: 'The build configuration to use'
+        required: false
+        type: string
+        default: 'Release'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup GitVersion
+        uses: gittools/actions/gitversion/setup@v4
+        with:
+          versionSpec: '6.x'
+
+      - name: Calculate version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v4
+
+      - name: Show version
+        run: |
+          echo "Version: ${{ steps.gitversion.outputs.semVer }}"
+          echo "Major: ${{ steps.gitversion.outputs.major }}"
+          echo "Minor: ${{ steps.gitversion.outputs.minor }}"
+          echo "Patch: ${{ steps.gitversion.outputs.patch }}"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+
+      - name: Configure GitHub Packages
+        run: |
+          dotnet nuget add source \
+            "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --name github \
+            --username "${{ github.actor }}" \
+            --password "${{ secrets.GH_PACKAGES_TOKEN }}" \
+            --store-password-in-clear-text
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Test
+        run: dotnet test -c Release --no-build --no-restore
+
+      - name: Pack
+        run: |
+          dotnet pack \
+            -c Release \
+            -o ./packages \
+            --no-build \
+            --no-restore \
+            -p:PackageVersion="${{ steps.gitversion.outputs.semVer }}"
+
+      - name: Create tag
+        env:
+          VERSION: ${{ steps.gitversion.outputs.semVer }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.gitversion.outputs.semVer }}
+        run: |
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --generate-notes
+
+      - name: Publish NuGet
+        run: |
+          dotnet nuget push "./packages/*.nupkg" \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --api-key "${{ secrets.GH_PACKAGES_TOKEN }}" \
+            --skip-duplicate
