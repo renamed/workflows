@@ -26,7 +26,7 @@ jobs:
         uses: release-drafter/release-drafter@v6
         with:
           publish: true
-          config-name: release-drafter.yml
+          config-name: release-drafter.yaml
           commitish: main
         env:
           GITHUB_TOKEN: ${{ github.token }}
