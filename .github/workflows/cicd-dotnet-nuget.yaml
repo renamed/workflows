@@ -19,6 +19,10 @@ on:
         required: false
         type: string
         default: 'Release'
+    secrets:
+      GH_PACKAGES_TOKEN:
+        description: 'GitHub Personal Access Token or secret for NuGet feed access'
+        required: true
 
 jobs:
   release:
