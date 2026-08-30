@@ -1,6 +1,9 @@
 name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 
+mode: continuous
+first-parent-only: true
+
 version-resolver:
   major:
     labels:
