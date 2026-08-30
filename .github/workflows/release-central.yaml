@@ -1,4 +1,4 @@
-name: Release Workflows Centralizados
+name: Release Central Workflows
 
 on:
   pull_request:
@@ -26,6 +26,8 @@ jobs:
         uses: release-drafter/release-drafter@v6
         with:
           publish: true
+          config-name: release-drafter.yml
+          commitish: main
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
@@ -34,12 +36,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ steps.release_drafter.outputs.tag_name }}
         run: |
-          # Extrai o numero major da tag gerada (ex: de v1.2.3 extrai v1)
           MAJOR_TAG=$(echo "$TAG_NAME" | cut -d. -f1)
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Atualiza a tag major (ex: v1 ou v2) para apontar para o commit atual
-          git tag -fa "$MAJOR_TAG" -m "Atualiza $MAJOR_TAG para a release $TAG_NAME"
+          git tag -fa "$MAJOR_TAG" -m "Update $MAJOR_TAG to release $TAG_NAME"
           git push origin "$MAJOR_TAG" --force
